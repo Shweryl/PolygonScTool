@@ -1,11 +1,11 @@
 import React from 'react';
 import { UploadCloud, PlayCircle, Wallet, AlertTriangle } from 'lucide-react';
 import { compileContract } from '~/utils/compileContract';
-import { 
-  CHAIN_INFO, 
-  getChainName, 
-  formatChainId, 
-  switchToChain as switchChain, 
+import {
+  CHAIN_INFO,
+  getChainName,
+  formatChainId,
+  switchToChain as switchChain,
   connectWallet as connectToWallet,
   isMainnet,
   getExplorerUrl
@@ -51,16 +51,16 @@ const SmartContractDeployer: React.FC = () => {
     try {
       const ethereum = (window as any).ethereum;
       if (!ethereum?.request) throw new Error('MetaMask not found');
-      
+
       const [accs, cid] = await Promise.all([
         ethereum.request({ method: 'eth_accounts' }),
         ethereum.request({ method: 'eth_chainId' }),
       ]);
-      
+
       console.log('🔄 Refreshed wallet info:', { accounts: accs, chainId: cid });
       setAccount((accs as string[])?.[0] ?? null);
       setChainId(cid ?? null);
-      
+
       if (cid) {
         setStatus(`Refreshed - Connected to ${getChainName(cid)} (ID: ${formatChainId(cid)})`);
       } else {
@@ -122,7 +122,7 @@ const SmartContractDeployer: React.FC = () => {
       console.warn('MetaMask not found or does not support event listeners');
       return;
     }
-    
+
     const handleAccountsChanged = (accs: string[]) => {
       console.log('🔄 Account changed:', accs);
       const newAccount = accs?.[0] ?? null;
@@ -134,7 +134,7 @@ const SmartContractDeployer: React.FC = () => {
         setDeployedAddress(null); // Clear deployed contract when account disconnected
       }
     };
-    
+
     const handleChainChanged = (cid: string) => {
       console.log('🔄 Chain changed to:', cid, 'Chain name:', getChainName(cid));
       setChainId(cid ?? null);
@@ -146,7 +146,7 @@ const SmartContractDeployer: React.FC = () => {
         setStatus('Chain disconnected');
       }
     };
-    
+
     // Remove any existing listeners first to prevent duplicates
     try {
       ethereum.removeListener('accountsChanged', handleAccountsChanged);
@@ -154,13 +154,13 @@ const SmartContractDeployer: React.FC = () => {
     } catch (e) {
       // Ignore errors if listeners don't exist yet
     }
-    
+
     // Add event listeners
     ethereum.on('accountsChanged', handleAccountsChanged);
     ethereum.on('chainChanged', handleChainChanged);
-    
+
     console.log('🎧 Event listeners registered');
-    
+
     // Initialize values if already connected
     (async () => {
       try {
@@ -178,7 +178,7 @@ const SmartContractDeployer: React.FC = () => {
         console.warn('Failed to initialize wallet info:', error);
       }
     })();
-    
+
     return () => {
       try {
         console.log('🧹 Cleaning up event listeners');
@@ -219,16 +219,16 @@ const SmartContractDeployer: React.FC = () => {
       const contract = await ContractFactory.deploy(...args);
       const receipt = await contract.waitForDeployment();
       const address = await contract.getAddress();
-      
+
       setDeployedAddress(address);
-      
+
       // eslint-disable-next-line no-console
       console.log('Deployed at:', address, receipt);
-      
+
       const explorerUrl = getExplorerUrl(chainId, address, 'address');
       setStatus(
-        explorerUrl 
-          ? `✅ Deployed successfully! View on ${getChainName(chainId)} Explorer` 
+        explorerUrl
+          ? `✅ Deployed successfully! View on ${getChainName(chainId)} Explorer`
           : `✅ Deployed at ${address}`
       );
     } catch (e: any) {
@@ -314,9 +314,9 @@ const SmartContractDeployer: React.FC = () => {
                 </div>
                 {chainId && CHAIN_INFO[chainId]?.blockExplorer && (
                   <div className="text-xs">
-                    <a 
-                      href={CHAIN_INFO[chainId]!.blockExplorer} 
-                      target="_blank" 
+                    <a
+                      href={CHAIN_INFO[chainId]!.blockExplorer}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"
                     >
@@ -330,7 +330,7 @@ const SmartContractDeployer: React.FC = () => {
               {account && (
                 <div className="border-t pt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-3">Switch Network:</label>
-                  
+
                   {/* Recommended Testnets */}
                   <div className="mb-3">
                     <div className="text-xs font-medium text-gray-600 mb-2">🧪 Recommended Testnets</div>
@@ -338,42 +338,40 @@ const SmartContractDeployer: React.FC = () => {
                       <button
                         onClick={() => switchToChain('0x13882')}
                         disabled={chainId === '0x13882'}
-                        className={`text-sm px-4 py-3 rounded-lg border-2 transition-all ${
-                          chainId === '0x13882'
+                        className={`text-sm px-4 py-3 rounded-lg border-2 transition-all ${chainId === '0x13882'
                             ? 'bg-green-100 border-green-300 text-green-800 cursor-not-allowed'
                             : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300'
-                        }`}
+                          }`}
                       >
                         <div className="font-medium">Amoy Testnet (POL)</div>
                         <div className="text-xs opacity-75">Chain ID: 80002 • Free POL tokens</div>
                         {chainId === '0x13882' && <div className="text-xs mt-1">✅ Currently Connected</div>}
                         {chainId !== '0x13882' && <div className="text-xs mt-1">👆 Click to add & switch</div>}
                       </button>
-                      
+
                       <button
                         onClick={() => switchToChain('0xaa36a7')}
                         disabled={chainId === '0xaa36a7'}
-                        className={`text-sm px-4 py-3 rounded-lg border-2 transition-all ${
-                          chainId === '0xaa36a7'
+                        className={`text-sm px-4 py-3 rounded-lg border-2 transition-all ${chainId === '0xaa36a7'
                             ? 'bg-green-100 border-green-300 text-green-800 cursor-not-allowed'
                             : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300'
-                        }`}
+                          }`}
                       >
                         <div className="font-medium">Sepolia Testnet (ETH)</div>
                         <div className="text-xs opacity-75">Chain ID: 11155111</div>
                         {chainId === '0xaa36a7' && <div className="text-xs mt-1">✅ Currently Connected</div>}
                       </button>
                     </div>
-                    
+
                     {/* Testnet tokens info */}
                     {chainId === '0x13882' && (
                       <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
                         <div className="font-medium text-blue-800 mb-1">🪙 Need POL tokens?</div>
                         <div className="text-blue-700">
                           Get free POL tokens from the{' '}
-                          <a 
-                            href="https://faucet.polygon.technology/" 
-                            target="_blank" 
+                          <a
+                            href="https://faucet.polygon.technology/"
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="underline hover:no-underline"
                           >
@@ -398,11 +396,10 @@ const SmartContractDeployer: React.FC = () => {
                           key={id}
                           onClick={() => switchToChain(id)}
                           disabled={chainId === id}
-                          className={`text-xs px-3 py-2 rounded transition-all ${
-                            chainId === id
+                          className={`text-xs px-3 py-2 rounded transition-all ${chainId === id
                               ? 'bg-green-100 text-green-800 cursor-not-allowed border border-green-300'
                               : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
-                          }`}
+                            }`}
                         >
                           {name}
                           {chainId === id && ' ✅'}
@@ -428,8 +425,8 @@ const SmartContractDeployer: React.FC = () => {
                     <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
                       <div className="text-yellow-800">
-                        <strong>Mainnet Deployment:</strong> You're about to deploy on {getChainName(chainId)}. 
-                        This will cost real {CHAIN_INFO[chainId]?.nativeCurrency?.symbol || 'tokens'}. 
+                        <strong>Mainnet Deployment:</strong> You're about to deploy on {getChainName(chainId)}.
+                        This will cost real {CHAIN_INFO[chainId]?.nativeCurrency?.symbol || 'tokens'}.
                         Consider testing on a testnet first.
                       </div>
                     </div>
@@ -438,7 +435,7 @@ const SmartContractDeployer: React.FC = () => {
                     <div className="flex items-start gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                       <AlertTriangle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
                       <div className="text-orange-800">
-                        <strong>Unknown Chain:</strong> You're on an unrecognized network (Chain ID: {formatChainId(chainId)}). 
+                        <strong>Unknown Chain:</strong> You're on an unrecognized network (Chain ID: {formatChainId(chainId)}).
                         Deployment may not work as expected.
                       </div>
                     </div>
@@ -455,9 +452,9 @@ const SmartContractDeployer: React.FC = () => {
                     <div><strong>Network:</strong> {getChainName(chainId)}</div>
                     {getExplorerUrl(chainId, deployedAddress) && (
                       <div>
-                        <a 
-                          href={getExplorerUrl(chainId, deployedAddress)!} 
-                          target="_blank" 
+                        <a
+                          href={getExplorerUrl(chainId, deployedAddress)!}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-green-600 hover:text-green-800 underline"
                         >
@@ -476,7 +473,10 @@ const SmartContractDeployer: React.FC = () => {
                 )}
                 {compiled && (
                   <div className="mt-3 text-sm text-gray-700">
-                    <div><strong>ABI length:</strong> {(compiled.abi as any[]).length}</div>
+                    {/* <div><strong>ABI length:</strong> {(compiled.abi as any[]).length}</div> */}
+                    <div>
+                      <strong>ABI JSON:</strong> {JSON.stringify(compiled.abi, null, 2)}
+                    </div>
                     <div><strong>Bytecode length:</strong> {compiled.bytecode.length}</div>
                   </div>
                 )}

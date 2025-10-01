@@ -8,9 +8,10 @@ interface Props {
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSubmit: (e: React.FormEvent) => void;
+  isSubmitting?: boolean; // <-- new prop
 }
 
-export const CardForm: React.FC<Props> = ({ formData, onInputChange, onFileChange, onSubmit }) => {
+export const CardForm: React.FC<Props> = ({ formData, onInputChange, onFileChange, onSubmit, isSubmitting }) => {
   return (
     <div className="bg-white rounded-xl shadow-lg p-8">
       <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
@@ -208,9 +209,10 @@ export const CardForm: React.FC<Props> = ({ formData, onInputChange, onFileChang
 
         <button
           type="submit"
-          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
+          disabled={isSubmitting}
+          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed disabled:opacity-70 hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
         >
-          Deploy Collection
+          { isSubmitting ? "Processing..." : "Deploy Collection"}
         </button>
       </form>
     </div>
