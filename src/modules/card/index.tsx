@@ -1,31 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CardForm from './components/CardForm';
 import CardPreview from './components/CardPreview';
 import type { CardFormData } from './types';
 import { readFileAsDataUrl } from './utils';
-import axios from "axios";
-import { ethers } from "ethers";
-import AmoyNFTAbi from "@/nft_amoy_abi.json"; // adjust path if needed
-import SepoliaNFTAbi from "@/nft_sepolia_abi.json";
-import { connectWallet, switchToChain, getWalletInfo, CHAIN_INFO } from "~/utils/chainUtils";
-import { useEffect } from 'react';
+import axios from 'axios';
+import { ethers } from 'ethers';
+import AmoyNFTAbi from '@/nft_amoy_abi.json';
+import SepoliaNFTAbi from '@/nft_sepolia_abi.json';
+import { connectWallet, switchToChain, getWalletInfo, CHAIN_INFO } from '~/utils/chainUtils';
+
+type NFTContract = ethers.Contract & {
+  mint(
+    to: string,
+    tokenId: bigint, // use bigint instead of number
+    tokenURI: string
+  ): Promise<ethers.ContractTransactionResponse>;
+};
 
 
 const CardModule: React.FC = () => {
-  const [formData, setFormData] = useState<CardFormData>({
-    collectionName: '',
-    batchNumber: '',
-    issuerBusinessName: '',
-    batchDescription: '',
-    noOfCards: 1,
-    cardName: '',
-    prefixId: '',
-    issueDate: '',
-    expireDate: '',
-    price: 0,
-    currencyType: 'USD',
-    cardGraphic: null,
-  });
 
   const initialFormData: CardFormData = {
     collectionName: '',
@@ -42,13 +35,13 @@ const CardModule: React.FC = () => {
     cardGraphic: null,
   };
 
-
+  const [formData, setFormData] = useState<CardFormData>(initialFormData);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [account, setAccount] = useState<string | null>(null);
   const [chainId, setChainId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
     const initWallet = async () => {
@@ -56,37 +49,33 @@ const CardModule: React.FC = () => {
         const wallet = await connectWallet();
         setAccount(wallet.account);
         setChainId(wallet.chainId);
+
         try {
-          // Try switching to Sepolia
-          await switchToChain("0xaa36a7");
+          await switchToChain('0xaa36a7'); // Sepolia
           const updated = await getWalletInfo();
           setChainId(updated.chainId);
-        } catch (switchErr: any) {
-          if (switchErr.message.includes("User rejected")) {
-            alert("You must switch to Sepolia or Amoy to use this app.");
-          } else {
-            alert("Please manually add Sepolia or Amoy in MetaMask settings.");
-            console.error("Switch failed:", switchErr);
+        } catch (switchErr: unknown) {
+          if (isErrorWithMessage(switchErr)) {
+            if (switchErr.message.includes('User rejected')) {
+              alert('You must switch to Sepolia or Amoy to use this app.');
+            } else {
+              alert('Please manually add Sepolia or Amoy in MetaMask settings.');
+              console.error('Switch failed:', switchErr.message);
+            }
           }
         }
-      } catch (err) {
-        // setError(err?.message || String(err));
-        console.log(err);
+      } catch (err: unknown) {
+        console.error(err);
         setError('Failed to connect wallet');
       }
     };
 
     void initWallet();
 
-    // Listen for account or chain changes
     const { ethereum } = window as any;
     if (ethereum) {
-      ethereum.on("accountsChanged", (accounts: string[]) => {
-        setAccount(accounts[0] || null);
-      });
-      ethereum.on("chainChanged", (chainId: string) => {
-        setChainId(chainId);
-      });
+      ethereum.on('accountsChanged', (accounts: string[]) => setAccount(accounts[0] || null));
+      ethereum.on('chainChanged', (newChainId: string) => setChainId(newChainId));
     }
   }, []);
 
@@ -101,90 +90,36 @@ const CardModule: React.FC = () => {
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFormData((prev) => ({ ...prev, cardGraphic: file }));
-      try {
-        const dataUrl = await readFileAsDataUrl(file);
-        setImagePreview(dataUrl);
-      } catch (err) {
-        console.error('Failed to read file', err);
-      }
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+
+    setFormData((prev) => ({ ...prev, cardGraphic: file }));
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setImagePreview(dataUrl);
+    } catch (err: unknown) {
+      console.error('Failed to read file', err);
+      setError('Failed to read file');
     }
   };
 
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (!formData.cardGraphic) return;
-
-  //   try {
-  //     const tokenBase64 = await readFileAsDataUrl(formData.cardGraphic);
-
-  //     const pinataRes = await axios.post("/api/uploadToPinata", {
-  //       file: tokenBase64,
-  //       metadata: {
-  //         name: formData.cardName,
-  //         description: formData.batchDescription,
-  //       },
-  //     });
-
-  //     const tokenURI = pinataRes.data.tokenURI;
-
-
-
-  //     // 3. Connect to MetaMask
-  //     const { ethereum } = window;
-  //     if (!ethereum) throw new Error("MetaMask not found");
-
-  //     const provider = new ethers.BrowserProvider(ethereum);
-  //     const signer = await provider.getSigner();
-
-  //     let contract: ethers.Contract; 
-  //     // 4. Connect to your deployed contract
-  //     if(chainId == "0x13882"){
-  //       const contractAddress = process.env.NEXT_PUBLIC_NFT_AMOY_CONTRACT_ADDRESS!;
-  //       contract = new ethers.Contract(contractAddress, AmoyNFTAbi, signer);
-  //     }else{
-  //       const contractAddress = process.env.NEXT_PUBLIC_NFT_SEPOLIA_CONTRACT_ADDRESS!;
-  //       console.log(contractAddress)
-  //       contract = new ethers.Contract(contractAddress, SepoliaNFTAbi, signer);
-  //     }
-
-
-
-  //     // 5. Mint NFT
-  //     const tx = await contract.mint(
-  //       await signer.getAddress(), // recipient
-  //       formData.batchNumber || 1, // collectionId or tokenId
-  //       tokenURI                   // metadata URI
-  //     );
-
-  //     await tx.wait();
-
-  //     alert("NFT minted successfully!");
-
-  //     setFormData(initialFormData);
-  //     setImagePreview('');
-
-  //   } catch (err: any) {
-  //     console.error(err);
-  //     alert(err.message || "Something went wrong");
-  //   }
-  // };
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.cardGraphic) return;
+    if (!formData.cardGraphic) {
+      setError('Please select a card graphic before submitting.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
 
     try {
-      setIsSubmitting(true);
-      setStatus("Reading file...");
-
+      setStatus('Reading file...');
       const tokenBase64 = await readFileAsDataUrl(formData.cardGraphic);
-      setStatus("Uploading file to Pinata...");
 
-      const pinataRes = await axios.post("/api/uploadToPinata", {
+      setStatus('Uploading file to Pinata...');
+      const pinataRes = await axios.post('/api/uploadToPinata', {
         file: tokenBase64,
         metadata: {
           name: formData.cardName,
@@ -193,50 +128,60 @@ const CardModule: React.FC = () => {
       });
 
       const tokenURI = pinataRes.data.tokenURI;
-      setStatus("Connecting to MetaMask...");
 
-      const { ethereum } = window;
-      if (!ethereum) throw new Error("MetaMask not found");
+      setStatus('Connecting to MetaMask...');
+      const { ethereum } = window as any;
+      if (!ethereum) throw new Error('MetaMask not found');
 
       const provider = new ethers.BrowserProvider(ethereum);
       const signer = await provider.getSigner();
 
-      setStatus("Connecting to smart contract...");
+      setStatus('Connecting to smart contract...');
 
-      let contract: ethers.Contract;
-      if (chainId == "0x13882") {
-        const contractAddress = process.env.NEXT_PUBLIC_NFT_AMOY_CONTRACT_ADDRESS!;
-        contract = new ethers.Contract(contractAddress, AmoyNFTAbi, signer);
-      } else {
-        const contractAddress = process.env.NEXT_PUBLIC_NFT_SEPOLIA_CONTRACT_ADDRESS!;
-        contract = new ethers.Contract(contractAddress, SepoliaNFTAbi, signer);
-      }
+      const contract: NFTContract =
+        chainId === '0x13882'
+          ? (new ethers.Contract(
+            process.env.NEXT_PUBLIC_NFT_AMOY_CONTRACT_ADDRESS!,
+            AmoyNFTAbi,
+            signer
+          ) as NFTContract)
+          : chainId === '0xaa36a7'
+            ? (new ethers.Contract(
+              process.env.NEXT_PUBLIC_NFT_SEPOLIA_CONTRACT_ADDRESS!,
+              SepoliaNFTAbi,
+              signer
+            ) as NFTContract)
+            : (() => {
+              throw new Error('Unsupported chainId: ' + chainId);
+            })();
 
-      setStatus("Minting NFT...");
+      setStatus('Minting NFT...');
 
+      // no need for "if (contract.mint)" check anymore, TS now guarantees it exists
       const tx = await contract.mint(
-        await signer.getAddress(), // recipient
-        formData.batchNumber || 1, // collectionId or tokenId
-        tokenURI                   // metadata URI
+        await signer.getAddress(),
+         BigInt(formData.batchNumber || "1"),
+        tokenURI
       );
 
-      setStatus("Waiting for transaction confirmation...");
+      setStatus('Waiting for transaction confirmation...');
       await tx.wait();
 
-      setStatus("NFT minted successfully!");
+
+
+
+      setStatus('NFT minted successfully!');
       setFormData(initialFormData);
-      setImagePreview("");
-
-    } catch (err: any) {
+      setImagePreview('');
+    } catch (err: unknown) {
       console.error(err);
-
-      // Handle user rejection
-      if (err.error?.code === 4001 || err.code === "ACTION_REJECTED") {
-        setError("Transaction cancelled by user.");
-        setStatus("");
+      const error = err as any;
+      if (error.error?.code === 4001) {
+      setError('Transaction cancelled by user.');
       } else {
-        setError("Something went wrong");
+        setError('Something went wrong');
       }
+      setStatus('');
     } finally {
       setIsSubmitting(false);
     }
@@ -255,27 +200,24 @@ const CardModule: React.FC = () => {
                 <strong>Error:</strong> {error}
               </span>
             )}
-
             {status && (
               <span className="bg-green-100 border-green-300 text-green-800 px-3 py-1 rounded-md border-2 inline-block">
                 <strong>Status:</strong> {status}
               </span>
             )}
-
             <div className="flex flex-wrap justify-center gap-3 mt-2">
               <span className="bg-blue-100 border-blue-300 text-blue-800 px-3 py-1 rounded-md border-2">
-                <strong>Wallet:</strong> {account || "Not connected"}
+                <strong>Wallet:</strong> {account || 'Not connected'}
               </span>
               <span className="bg-purple-100 border-purple-300 text-purple-800 px-3 py-1 rounded-md border-2">
-                <strong>Current Chain:</strong> {CHAIN_INFO[chainId ?? ""]?.name || "Unknown"}
+                <strong>Current Chain:</strong> {CHAIN_INFO[chainId ?? '']?.name || 'Unknown'}
               </span>
             </div>
-
             <button
-              onClick={() => switchToChain(chainId === "0xaa36a7" ? "0x13882" : "0xaa36a7")}
+              onClick={() => switchToChain(chainId === '0xaa36a7' ? '0x13882' : '0xaa36a7')}
               className="mt-3 px-5 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
             >
-              Switch to {chainId === "0xaa36a7" ? "Amoy" : "Sepolia"}
+              Switch to {chainId === '0xaa36a7' ? 'Amoy' : 'Sepolia'}
             </button>
           </div>
         </div>
@@ -288,7 +230,6 @@ const CardModule: React.FC = () => {
             onSubmit={handleSubmit}
             isSubmitting={isSubmitting}
           />
-
           <CardPreview formData={formData} imagePreview={imagePreview} />
         </div>
       </div>
@@ -297,3 +238,20 @@ const CardModule: React.FC = () => {
 };
 
 export default CardModule;
+
+// Helper type guards
+function isErrorWithMessage(err: unknown): err is { message: string } {
+  return typeof err === 'object' && err !== null && 'message' in err && typeof (err as any).message === 'string';
+}
+
+// function getErrorMessage(err: unknown, fallback: string): string {
+//   return isErrorWithMessage(err) ? err.message : fallback;
+// }
+
+// function isEthersUserRejectedError(err: unknown): boolean {
+//   return (
+//     (err as any)?.code === 4001 ||
+//     (err as any)?.code === 'ACTION_REJECTED' ||
+//     ((err as any)?.error && (err as any).error.code === 4001)
+//   );
+// }

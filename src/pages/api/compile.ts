@@ -18,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
   // Load solc server-side
-  // @ts-expect-error - no types for 'solc' in this project; runtime import is valid on server
+
   const solcMod = await import("solc");
     const solc: any = (solcMod as any).default ?? solcMod;
 
